@@ -75,6 +75,7 @@ var SHOW_TIME:Double = 5
 
 let APP_DELEGATE = UIApplication.shared
 let frameWidth:CGFloat! = UIApplication.shared.keyWindow?.bounds.width
+private let deviceHeight = UIApplication.shared.keyWindow?.bounds.height
 
 var appIconName:String!
 var appName:String!
@@ -224,6 +225,19 @@ open class GLNotificationBar: NSObject {
         }
     }
     
+    @objc open func setShadow(_ shadow: Bool){
+        if (shadow){
+            notificationBar.notificationView.backgroundColor = UIColor.white
+            notificationBar.notificationView.layer.shadowColor = UIColor.black.cgColor
+            notificationBar.notificationView.layer.shadowOpacity = 0.4
+            notificationBar.notificationView.layer.shadowOffset = CGSize.zero
+            notificationBar.notificationView.layer.shadowRadius = 7
+        }
+    }
+    
+
+    
+    
     @IBAction func hideNotification(_ sender:UIButton) {
         if (notificationBar != nil) {
             UIView.animate(withDuration: 0.5, animations: {
@@ -245,8 +259,7 @@ open class GLNotificationBar: NSObject {
         }
         
         notificationBar = CustomView(frame: CGRect(x: 0, y: -BAR_HEIGHT, width: frameWidth!, height: BAR_HEIGHT))
-        notificationBar.translatesAutoresizingMaskIntoConstraints = false
-
+        
         switch notificationStyle {
         case .detailedBanner:
             notificationBar.notificationStyleIndicator.isHidden = false
@@ -289,18 +302,25 @@ open class GLNotificationBar: NSObject {
         notificationBar.appIcon.clipsToBounds = true
         
         
+        notificationBar.notificationView.layer.cornerRadius = 14.0
         notificationBar.visualEffectView.layer.cornerRadius = 14.0
         notificationBar.visualEffectView.clipsToBounds = true
         
         let didSelectMessage = UITapGestureRecognizer(target: self, action: #selector(CustomView.didSelectmessage(_:)))
         notificationBar.addGestureRecognizer(didSelectMessage)
         
-        UIView.animate(withDuration: 0.5, delay: 0.0, options: .curveEaseOut, animations: { 
-            let frame = CGRect(x: 0, y: 0, width: frameWidth, height: BAR_HEIGHT)
+        UIView.animate(withDuration: 0.5, delay: 0.0, options: .curveEaseOut, animations: {
+            let frame:CGRect!
+            if deviceHeight == 812 { // If iPhone X yPosition shoud be heigh
+                frame = CGRect(x: 0, y: 35, width: frameWidth, height: BAR_HEIGHT)
+            }else{
+                frame = CGRect(x: 0, y: 0, width: frameWidth, height: BAR_HEIGHT)
+            }
             notificationBar.frame = frame
             }, completion: nil)
         
-        APP_DELEGATE.keyWindow?.windowLevel = (UIWindowLevelStatusBar + 1)
+        // Hide status bar except iPhone X.
+        APP_DELEGATE.keyWindow?.windowLevel = deviceHeight == 812 ? 0 :(UIWindowLevelStatusBar + 1)
         APP_DELEGATE.keyWindow!.addSubview(notificationBar)
         
         var constraints = [NSLayoutConstraint]()
@@ -358,6 +378,7 @@ class CustomView : UIView {
     @IBOutlet weak var visualEffectView: UIVisualEffectView!
     @IBOutlet weak var appIcon: UIImageView!
     @IBOutlet weak var notificationStyleIndicator: UIView!
+    @IBOutlet weak var notificationView: UIView!
     
     //MARK: Variables:
     var dismissLabelAlpha:CGFloat = 0.0
@@ -629,7 +650,7 @@ class CustomView : UIView {
         let mainVerticalConstraints = NSLayoutConstraint.constraints(withVisualFormat: "V:|[Main_view(200@250)]-(>=5)-[Tool_Bar]-(0@250)-|", options: [], metrics: nil, views: viewDic)
         allConstraints += mainVerticalConstraints
         
-        let hostVerticalConstraint = NSLayoutConstraint.constraints(withVisualFormat: "V:|[Dismiss]-[host_View(>=20)]-10-[Button_actionView(>=0)]-(>=10)-|", options: [], metrics: nil, views: viewDic)
+        let hostVerticalConstraint = NSLayoutConstraint.constraints(withVisualFormat: "V:|-yPosition-[Dismiss]-[host_View(>=20)]-10-[Button_actionView(>=0)]-(>=10)-|", options: [], metrics: ["yPosition" : deviceHeight == 812 ? 30 : 0], views: viewDic)
         allConstraints += hostVerticalConstraint
         
         let hostSecondVerticalConstraint = NSLayoutConstraint.constraints(withVisualFormat: "V:[host_View]-(>=30)-|", options: [], metrics: nil, views: viewDic)
@@ -694,10 +715,13 @@ class CustomView : UIView {
             switch directionValue {
             case PanDirection.up.rawValue:  //Swipe up
                 gestureRecognizer.view!.center = CGPoint(x: gestureRecognizer.view!.center.x, y: gestureRecognizer.view!.center.y + translation.y)
+                notificationBar.notificationView.center = CGPoint(x: notificationBar.notificationView.center.x, y: gestureRecognizer.view!.center.y + translation.y)
                 break
             case PanDirection.down.rawValue:  //Swipe Down
                 if showNotificationInDetail {
                     gestureRecognizer.view!.center = CGPoint(x: gestureRecognizer.view!.center.x, y: gestureRecognizer.view!.center.y + translation.y)
+                    
+                    notificationBar.notificationView.center = CGPoint(x: notificationBar.notificationView.center.x, y: gestureRecognizer.view!.center.y + translation.y)
                 }
                 break
             default:
@@ -901,7 +925,9 @@ class CustomView : UIView {
         
         
         let barButtonItemOne = UIBarButtonItem(customView: textField)
+        barButtonItemOne.width = frameWidth - 75
         let barButtonItemtwo = UIBarButtonItem(customView: button)
+        barButtonItemtwo.width = 50
         
         let fixedWidth = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: self, action: nil)
         fixedWidth.width = 5
